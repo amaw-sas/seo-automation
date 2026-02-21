@@ -1,0 +1,37 @@
+/database/*.sqlite
+/debug-*.php
+/.phpunit.cache
+/node_modules
+/public/build
+/public/hot
+/public/storage
+/storage/*.key
+/storage/pail
+/vendor
+.env
+.env.backup
+.env.production
+.phpactor.json
+.phpunit.result.cache
+Homestead.json
+Homestead.yaml
+npm-debug.log
+yarn-error.log
+/auth.json
+/.fleet
+/.idea
+/.nova
+/.vscode
+/.zed
+
+# AI Framework runtime files (auto-added)
+/.claude/*
+/.specify/
+/CLAUDE.md
+/.playwright-mcp/
+/hooks/*.db
+/hooks/__pycache__/
+
+# AI Framework runtime files (auto-added)
+!/.claude/rules/
+/.ralph/
