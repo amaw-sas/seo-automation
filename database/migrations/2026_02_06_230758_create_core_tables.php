@@ -108,7 +108,7 @@ return new class extends Migration
         Schema::create('domain_pages', function (Blueprint $table) {
             $table->unsignedInteger('id', true);
             $table->unsignedSmallInteger('domain_id');
-            $table->string('url', 1000);
+            $table->string('url', 750);
             $table->unsignedMediumInteger('traffic')->default(0);
             $table->unsignedSmallInteger('keywords_count')->default(0);
             $table->unsignedSmallInteger('backlinks_count')->default(0);
