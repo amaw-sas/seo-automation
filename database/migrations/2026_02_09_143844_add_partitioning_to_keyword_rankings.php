@@ -37,6 +37,10 @@ return new class extends Migration
         DB::statement('ALTER TABLE keyword_rankings DROP FOREIGN KEY keyword_rankings_keyword_id_foreign');
         DB::statement('ALTER TABLE keyword_rankings DROP FOREIGN KEY keyword_rankings_domain_id_foreign');
 
+        // MySQL requires the partition column to be part of ALL unique keys including PK
+        DB::statement('ALTER TABLE keyword_rankings DROP PRIMARY KEY');
+        DB::statement('ALTER TABLE keyword_rankings ADD PRIMARY KEY (id, snapshot_month)');
+
         DB::statement('ALTER TABLE keyword_rankings DROP INDEX keyword_rankings_keyword_id_domain_id_snapshot_date_unique');
         DB::statement('ALTER TABLE keyword_rankings ADD UNIQUE KEY keyword_rankings_unique (keyword_id, domain_id, snapshot_date, snapshot_month)');
 
@@ -73,6 +77,9 @@ return new class extends Migration
         }
 
         DB::statement('ALTER TABLE keyword_rankings REMOVE PARTITIONING');
+
+        DB::statement('ALTER TABLE keyword_rankings DROP PRIMARY KEY');
+        DB::statement('ALTER TABLE keyword_rankings ADD PRIMARY KEY (id)');
 
         DB::statement('ALTER TABLE keyword_rankings DROP INDEX keyword_rankings_unique');
         DB::statement('ALTER TABLE keyword_rankings ADD UNIQUE KEY keyword_rankings_keyword_id_domain_id_snapshot_date_unique (keyword_id, domain_id, snapshot_date)');
