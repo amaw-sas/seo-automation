@@ -12,7 +12,7 @@ return new class extends Migration
     {
         // Vista 1: v_keywords_full - Keywords con todas sus relaciones
         DB::statement("
-            CREATE VIEW v_keywords_full AS
+            CREATE OR REPLACE VIEW v_keywords_full AS
             SELECT
                 k.id,
                 k.keyword,
@@ -34,7 +34,7 @@ return new class extends Migration
 
         // Vista 2: v_current_rankings - Rankings del último snapshot
         DB::statement("
-            CREATE VIEW v_current_rankings AS
+            CREATE OR REPLACE VIEW v_current_rankings AS
             SELECT
                 kr.id,
                 kr.keyword_id,
@@ -59,7 +59,7 @@ return new class extends Migration
 
         // Vista 3: v_keyword_opportunities - Gaps no atendidos ordenados por score
         DB::statement("
-            CREATE VIEW v_keyword_opportunities AS
+            CREATE OR REPLACE VIEW v_keyword_opportunities AS
             SELECT
                 kg.id,
                 kg.keyword_id,
@@ -85,7 +85,7 @@ return new class extends Migration
 
         // Vista 4: v_quality_backlinks - Backlinks sin spam, score >= 3
         DB::statement("
-            CREATE VIEW v_quality_backlinks AS
+            CREATE OR REPLACE VIEW v_quality_backlinks AS
             SELECT
                 b.id,
                 b.referring_domain_id,
@@ -112,7 +112,7 @@ return new class extends Migration
 
         // Vista 5: v_domains_summary - Métricas actualizadas por dominio
         DB::statement("
-            CREATE VIEW v_domains_summary AS
+            CREATE OR REPLACE VIEW v_domains_summary AS
             SELECT
                 d.id,
                 d.domain,
