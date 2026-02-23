@@ -33,6 +33,10 @@ return new class extends Migration
         // La tabla ya tiene un unique constraint en (keyword_id, domain_id, snapshot_date)
         // pero necesitamos incluir snapshot_month para particionar por ese campo
 
+        // Drop foreign keys — MySQL does not support FKs on partitioned tables
+        DB::statement('ALTER TABLE keyword_rankings DROP FOREIGN KEY keyword_rankings_keyword_id_foreign');
+        DB::statement('ALTER TABLE keyword_rankings DROP FOREIGN KEY keyword_rankings_domain_id_foreign');
+
         DB::statement('ALTER TABLE keyword_rankings DROP INDEX keyword_rankings_keyword_id_domain_id_snapshot_date_unique');
         DB::statement('ALTER TABLE keyword_rankings ADD UNIQUE KEY keyword_rankings_unique (keyword_id, domain_id, snapshot_date, snapshot_month)');
 
@@ -68,11 +72,13 @@ return new class extends Migration
             return;
         }
 
-        // Eliminar particionamiento (convierte de nuevo a tabla normal)
         DB::statement('ALTER TABLE keyword_rankings REMOVE PARTITIONING');
 
-        // Restaurar índice único original
         DB::statement('ALTER TABLE keyword_rankings DROP INDEX keyword_rankings_unique');
         DB::statement('ALTER TABLE keyword_rankings ADD UNIQUE KEY keyword_rankings_keyword_id_domain_id_snapshot_date_unique (keyword_id, domain_id, snapshot_date)');
+
+        // Restore foreign keys
+        DB::statement('ALTER TABLE keyword_rankings ADD CONSTRAINT keyword_rankings_keyword_id_foreign FOREIGN KEY (keyword_id) REFERENCES keywords (id) ON DELETE CASCADE');
+        DB::statement('ALTER TABLE keyword_rankings ADD CONSTRAINT keyword_rankings_domain_id_foreign FOREIGN KEY (domain_id) REFERENCES domains (id) ON DELETE CASCADE');
     }
 };
