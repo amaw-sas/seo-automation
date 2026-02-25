@@ -9,8 +9,13 @@ jobs:
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -26,3 +31,20 @@ jobs:
             php artisan config:cache
             php artisan route:cache
             php artisan view:cache
+
+      - name: Tag deployment
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch --tags
+          LATEST=$(git tag -l "v*" | sort -V | tail -n 1)
+          if [ -z "$LATEST" ]; then
+            NEW_TAG="v1.0.0"
+          else
+            MAJOR=$(echo "$LATEST" | cut -d. -f1 | tr -d 'v')
+            MINOR=$(echo "$LATEST" | cut -d. -f2)
+            PATCH=$(echo "$LATEST" | cut -d. -f3)
+            NEW_TAG="v${MAJOR}.${MINOR}.$((PATCH + 1))"
+          fi
+          git tag "$NEW_TAG"
+          git push origin "$NEW_TAG"
