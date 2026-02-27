@@ -121,17 +121,19 @@ class NuxtBlogPublisher
     }
 
     /**
-     * Convert a public localhost storage URL to an absolute filesystem path.
-     * e.g. http://localhost/storage/generated/img_xxx.png
+     * Convert a public storage URL to an absolute filesystem path, regardless of host.
+     * e.g. http://64.23.238.57/storage/generated/img_xxx.png
      *      → /path/to/project/storage/app/public/generated/img_xxx.png
      */
     private function resolveLocalPath(string $url): string
     {
-        return str_replace(
-            'http://localhost/storage/',
-            storage_path('app/public') . '/',
-            $url
-        );
+        $path = parse_url($url, PHP_URL_PATH); // e.g. "/storage/generated/img_xxx.png"
+
+        if ($path && str_starts_with($path, '/storage/')) {
+            return storage_path('app/public') . substr($path, strlen('/storage'));
+        }
+
+        return $url;
     }
 
     /**
