@@ -111,6 +111,7 @@ class ContentGenerator
     private function generateOutline(Keyword $keyword, array $options = []): array
     {
         $cityName = $keyword->city?->name ?? 'Colombia';
+        $currentYear = now()->year;
 
         $prompt = <<<PROMPT
 Genera un outline detallado para un post de blog sobre "{$keyword->keyword}".
@@ -119,9 +120,11 @@ Genera un outline detallado para un post de blog sobre "{$keyword->keyword}".
 - Keyword: {$keyword->keyword}
 - Volumen de búsqueda: {$keyword->search_volume_co} búsquedas/mes en Colombia
 - Ciudad: {$cityName}
+- Año actual: {$currentYear}
 
 **Requisitos**:
 - Título optimizado para SEO (máximo 60 caracteres)
+- El contenido debe ser actual y relevante para {$currentYear}
 - 6-8 secciones H2 que respondan intención de búsqueda
 - Incluir sección de FAQ
 - Longitud objetivo: 1500-2000 palabras
@@ -185,6 +188,7 @@ PROMPT;
     private function generateSection(array $section, Keyword $keyword): string
     {
         $cityName = $keyword->city?->name ?? 'Colombia';
+        $currentYear = now()->year;
 
         $prompt = <<<PROMPT
 Escribe la sección "{$section['heading']}" para un post de blog sobre "{$keyword->keyword}".
@@ -192,9 +196,12 @@ Escribe la sección "{$section['heading']}" para un post de blog sobre "{$keywor
 **Outline**: {$section['outline']}
 **Longitud objetivo**: {$section['word_count']} palabras
 **Ciudad**: {$cityName}
+**Año actual**: {$currentYear}
 
 **Requisitos**:
 - Tono conversacional pero profesional
+- Toda la información debe ser actual y relevante para {$currentYear}
+- No mencionar años anteriores como si fueran el presente
 - Incluir información específica de Colombia
 - Usar ejemplos prácticos
 - Formato HTML (usar <p>, <ul>, <li>, <strong>, etc.)
@@ -327,9 +334,10 @@ PROMPT;
 
         try {
             // Generate featured image
-            $featuredPrompt = "Una imagen profesional y de alta calidad que represente: {$outline['title']}. "
-                . "Contexto: alquiler de carros en {$cityName}, Colombia. "
-                . "Estilo: moderno, limpio, adecuado para encabezado de blog. Sin texto ni marcas de agua.";
+            $featuredPrompt = "Professional high-quality photo representing: {$outline['title']}. "
+                . "Context: car rental in {$cityName}, Colombia. "
+                . "Style: modern, clean, suitable for a blog header. "
+                . "IMPORTANT: absolutely no text, no words, no letters, no watermarks, no overlays of any kind in the image.";
 
             $featuredImage = $this->imageLLM->generate($featuredPrompt, [
                 'size' => '1024x1024',
@@ -344,9 +352,10 @@ PROMPT;
             $sectionsForImages = array_slice($outline['sections'], 0, 2);
 
             foreach ($sectionsForImages as $section) {
-                $inlinePrompt = "Ilustración para sección de blog: {$section['heading']}. "
-                    . "Contexto: {$section['outline']}. "
-                    . "Estilo: profesional, informativo, adecuado para contenido de blog. Sin texto.";
+                $inlinePrompt = "Professional illustration for blog section: {$section['heading']}. "
+                    . "Context: {$section['outline']}. "
+                    . "Style: professional, informative, suitable for blog content. "
+                    . "IMPORTANT: absolutely no text, no words, no letters, no watermarks in the image.";
 
                 $inlineImage = $this->imageLLM->generate($inlinePrompt, [
                     'size' => '1024x1024',
