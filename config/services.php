@@ -47,8 +47,9 @@ return [
     ],
 
     'openai' => [
-        'api_key' => env('OPENAI_API_KEY'),
-        'model' => env('OPENAI_MODEL', 'gpt-4-turbo'),
+        'api_key'     => env('OPENAI_API_KEY'),
+        'model'       => env('OPENAI_MODEL', 'gpt-4-turbo'),
+        'image_model' => env('OPENAI_IMAGE_MODEL', 'dall-e-3'),
     ],
 
     'google' => [
