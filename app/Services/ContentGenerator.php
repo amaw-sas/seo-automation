@@ -334,11 +334,11 @@ PROMPT;
 
         try {
             // Generate featured image
-            $featuredPrompt = "Realistic photograph of a modern car on a road in {$cityName}, Colombia. "
-                . "The car is clean and well-maintained, parked or driving on a Colombian street with tropical vegetation, "
-                . "green mountains, or colonial-style buildings visible in the background. "
-                . "Warm natural daylight, photorealistic style, no futuristic elements, no skyscrapers. "
-                . "Suitable as a blog header image for a car rental service in Colombia. "
+            $featuredPrompt = "Realistic photograph of a modern rental car in a setting that matches the location: \"{$keyword->keyword}\". "
+                . "The scene should feel authentic to that specific city or region: correct local architecture, vegetation, and atmosphere. "
+                . "The car is clean and well-maintained, parked or driving on a real local street or highway. "
+                . "Natural daylight, photorealistic photography style, warm colors. "
+                . "No futuristic elements, no dystopian imagery, no skyscrapers that do not belong to that city. "
                 . "IMPORTANT: absolutely no text, no words, no letters, no watermarks, no overlays of any kind in the image.";
 
             $featuredImage = $this->imageLLM->generate($featuredPrompt, [
@@ -354,10 +354,11 @@ PROMPT;
             $sectionsForImages = array_slice($outline['sections'], 0, 2);
 
             foreach ($sectionsForImages as $section) {
-                $inlinePrompt = "Realistic photograph related to car rental in {$cityName}, Colombia: {$section['heading']}. "
-                    . "Show a real scene: a person receiving car keys, a car on a Colombian highway, "
-                    . "a customer at a rental counter, or a car parked near a Colombian landmark. "
-                    . "Natural daylight, photorealistic style, warm colors, no futuristic elements. "
+                $inlinePrompt = "Realistic photograph illustrating \"{$section['heading']}\" "
+                    . "in the context of car rental in {$cityName}. "
+                    . "Show an authentic scene: a customer receiving car keys, a car on a local road or highway, "
+                    . "a rental counter interaction, or a car parked near a recognizable local landmark. "
+                    . "Natural daylight, photorealistic photography. No futuristic elements. "
                     . "IMPORTANT: absolutely no text, no words, no letters, no watermarks in the image.";
 
                 $inlineImage = $this->imageLLM->generate($inlinePrompt, [
