@@ -38,7 +38,7 @@ class DallE3Provider implements ImageLLMProvider
         }
 
         $size    = $options['size']    ?? '1024x1024'; // 1024x1024, 1024x1792, 1792x1024
-        $quality = $options['quality'] ?? 'standard';  // standard, hd
+        $quality = $this->normalizeQuality($options['quality'] ?? 'standard');
 
         $response = Http::withHeaders([
             'Authorization' => 'Bearer ' . $this->apiKey,
@@ -77,6 +77,18 @@ class DallE3Provider implements ImageLLMProvider
                 'original_url' => $imageUrl,
             ],
         ];
+    }
+
+    /**
+     * Normalize quality to DALL-E 3 accepted values (standard, hd).
+     * Maps XAI-style values (low, medium, high) to OpenAI equivalents.
+     */
+    private function normalizeQuality(string $quality): string
+    {
+        return match($quality) {
+            'hd', 'high' => 'hd',
+            default      => 'standard', // low, medium, standard → standard
+        };
     }
 
     private function downloadAndSaveImage(string $url): string
