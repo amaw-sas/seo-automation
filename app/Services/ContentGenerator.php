@@ -334,9 +334,11 @@ PROMPT;
 
         try {
             // Generate featured image
-            $featuredPrompt = "Professional high-quality photo representing: {$outline['title']}. "
-                . "Context: car rental in {$cityName}, Colombia. "
-                . "Style: modern, clean, suitable for a blog header. "
+            $featuredPrompt = "Realistic photograph of a modern car on a road in {$cityName}, Colombia. "
+                . "The car is clean and well-maintained, parked or driving on a Colombian street with tropical vegetation, "
+                . "green mountains, or colonial-style buildings visible in the background. "
+                . "Warm natural daylight, photorealistic style, no futuristic elements, no skyscrapers. "
+                . "Suitable as a blog header image for a car rental service in Colombia. "
                 . "IMPORTANT: absolutely no text, no words, no letters, no watermarks, no overlays of any kind in the image.";
 
             $featuredImage = $this->imageLLM->generate($featuredPrompt, [
@@ -352,9 +354,10 @@ PROMPT;
             $sectionsForImages = array_slice($outline['sections'], 0, 2);
 
             foreach ($sectionsForImages as $section) {
-                $inlinePrompt = "Professional illustration for blog section: {$section['heading']}. "
-                    . "Context: {$section['outline']}. "
-                    . "Style: professional, informative, suitable for blog content. "
+                $inlinePrompt = "Realistic photograph related to car rental in {$cityName}, Colombia: {$section['heading']}. "
+                    . "Show a real scene: a person receiving car keys, a car on a Colombian highway, "
+                    . "a customer at a rental counter, or a car parked near a Colombian landmark. "
+                    . "Natural daylight, photorealistic style, warm colors, no futuristic elements. "
                     . "IMPORTANT: absolutely no text, no words, no letters, no watermarks in the image.";
 
                 $inlineImage = $this->imageLLM->generate($inlinePrompt, [
