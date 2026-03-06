@@ -14,7 +14,7 @@ class ImageLLMProviderFactory
     public static function make(string $provider): ImageLLMProvider
     {
         return match($provider) {
-            'dalle3' => new DallE3Provider(
+            'dalle3', 'openai' => new DallE3Provider(
                 config('services.openai.api_key'),
                 config('services.openai.image_model', 'dall-e-3')
             ),
