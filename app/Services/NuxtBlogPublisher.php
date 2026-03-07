@@ -80,6 +80,26 @@ class NuxtBlogPublisher
     }
 
     /**
+     * Delete a post from the Nuxt blog by slug.
+     *
+     * @throws \RuntimeException
+     */
+    public function delete(string $slug, string $endpointUrl, string $apiKey): void
+    {
+        $endpointUrl = rtrim($endpointUrl, '/');
+
+        $response = Http::withHeaders(['x-api-key' => $apiKey])
+            ->timeout(30)
+            ->delete("{$endpointUrl}/api/blog/post/{$slug}");
+
+        if (! $response->successful()) {
+            throw new \RuntimeException(
+                "Nuxt delete failed [{$response->status()}]: " . $response->body()
+            );
+        }
+    }
+
+    /**
      * Upload a local image file to Firebase Storage via the Nuxt upload-image endpoint.
      * Returns the public Firebase Storage URL.
      */
