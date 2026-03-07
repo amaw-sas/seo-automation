@@ -3,7 +3,9 @@
 namespace App\Console\Commands\Seo;
 
 use App\Models\GeneratedPost;
+use App\Models\NuxtSite;
 use App\Models\WordPressSite;
+use App\Services\NuxtBlogPublisher;
 use App\Services\WordPressPublisher;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -18,7 +20,8 @@ class PublishBatch extends Command
     protected $signature = 'seo:publish:batch
                             {--limit=10 : Máximo de posts a publicar}
                             {--min-quality=70 : Quality score mínimo requerido}
-                            {--site= : ID del WordPressSite (opcional, si omitido publica a todos los sitios activos)}';
+                            {--site= : ID del WordPressSite (opcional, si omitido publica a todos los sitios activos)}
+                            {--sync-nuxt : Sincroniza cada post publicado al sitio Nuxt vinculado por domain_id}';
 
     /**
      * The console command description.
@@ -34,7 +37,7 @@ class PublishBatch extends Command
     /**
      * Execute the console command.
      */
-    public function handle(WordPressPublisher $publisher): int
+    public function handle(WordPressPublisher $publisher, NuxtBlogPublisher $nuxtPublisher): int
     {
         $limit = (int) $this->option('limit');
         $minQuality = (int) $this->option('min-quality');
@@ -89,6 +92,22 @@ class PublishBatch extends Command
                 $this->successCount++;
                 $this->totalDuration += $result->duration;
 
+                if ($this->option('sync-nuxt') && $site->domain_id) {
+                    $nuxtSite = NuxtSite::where('domain_id', $site->domain_id)
+                        ->where('is_active', true)
+                        ->first();
+
+                    if ($nuxtSite) {
+                        try {
+                            $nuxtPublisher->sync($post, $nuxtSite->site_url, $nuxtSite->api_key);
+                            $this->info("      ✓ Synced to Nuxt ({$nuxtSite->site_name})");
+                        } catch (\RuntimeException $e) {
+                            $this->warn("      ⚠ Nuxt sync failed for post #{$post->id}: {$e->getMessage()}");
+                            Log::warning("Nuxt sync failed for post #{$post->id}: {$e->getMessage()}");
+                        }
+                    }
+                }
+
                 $progressBar->advance();
                 $this->newLine(2);
                 $this->info("[{$number}/{$posts->count()}] Post #{$post->id} \"{$post->title}\" ✓");
@@ -115,6 +134,22 @@ class PublishBatch extends Command
 
                         $this->info("      Retry successful ✓");
                         $this->info("      {$result->publishedUrl}");
+
+                        if ($this->option('sync-nuxt') && $site->domain_id) {
+                            $nuxtSite = NuxtSite::where('domain_id', $site->domain_id)
+                                ->where('is_active', true)
+                                ->first();
+
+                            if ($nuxtSite) {
+                                try {
+                                    $nuxtPublisher->sync($post, $nuxtSite->site_url, $nuxtSite->api_key);
+                                    $this->info("      ✓ Synced to Nuxt ({$nuxtSite->site_name})");
+                                } catch (\RuntimeException $e) {
+                                    $this->warn("      ⚠ Nuxt sync failed for post #{$post->id}: {$e->getMessage()}");
+                                    Log::warning("Nuxt sync failed for post #{$post->id}: {$e->getMessage()}");
+                                }
+                            }
+                        }
                     } catch (\Exception $retryException) {
                         $this->error("      Retry also failed: {$retryException->getMessage()}");
                         Log::error("Failed to publish post #{$post->id} after retry: {$retryException->getMessage()}");

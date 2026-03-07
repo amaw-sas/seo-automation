@@ -8,7 +8,7 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command('seo:publish:batch --limit=2 --min-quality=70')
+Schedule::command('seo:publish:batch --limit=2 --min-quality=70 --sync-nuxt')
     ->dailyAt('08:00')
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/publish-batch.log'));

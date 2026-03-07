@@ -270,18 +270,3 @@ class WordPressPublisher
         throw $lastException;
     }
 }
-
-/**
- * DTO para resultado de publicación.
- */
-class PublishResult
-{
-    public function __construct(
-        public bool $success,
-        public int $wordpressPostId,
-        public string $publishedUrl,
-        public float $duration,
-        public int $imagesUploaded = 0
-    ) {
-    }
-}
