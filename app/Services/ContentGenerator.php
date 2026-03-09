@@ -212,7 +212,7 @@ PROMPT;
 
         $response = $this->llm->complete($prompt, [
             'temperature' => 0.8,
-            'max_tokens' => ($section['word_count'] ?? 200) * 2,
+            'max_tokens' => max(1000, ($section['word_count'] ?? 200) * 5),
         ]);
 
         $this->trackUsage($response);
