@@ -24,15 +24,15 @@ class PostValidator
             );
         }
 
-        // Validar meta description: 120-160 caracteres
+        // Validar meta description: 100-160 caracteres
         if (empty($post->meta_description)) {
             throw new ValidationException("Meta description es requerida");
         }
 
         $metaLength = mb_strlen($post->meta_description);
-        if ($metaLength < 120 || $metaLength > 160) {
+        if ($metaLength < 100 || $metaLength > 160) {
             throw new ValidationException(
-                "Meta description debe tener entre 120 y 160 caracteres (actual: {$metaLength})"
+                "Meta description debe tener entre 100 y 160 caracteres (actual: {$metaLength})"
             );
         }
 
