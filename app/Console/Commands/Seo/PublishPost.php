@@ -5,121 +5,108 @@ namespace App\Console\Commands\Seo;
 use App\Exceptions\ValidationException;
 use App\Exceptions\WordPressPublishException;
 use App\Models\GeneratedPost;
+use App\Models\NuxtSite;
 use App\Models\WordPressSite;
+use App\Services\NuxtBlogPublisher;
 use App\Services\WordPressPublisher;
 use Illuminate\Console\Command;
 
 class PublishPost extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
     protected $signature = 'seo:publish:post
                             {post : ID del GeneratedPost a publicar}
-                            {--site= : ID del WordPressSite (requerido)}';
+                            {--site= : ID del sitio destino (requerido)}
+                            {--site-type=wordpress : Tipo de sitio: wordpress|nuxt}';
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Publica un GeneratedPost específico a WordPress';
+    protected $description = 'Publica un GeneratedPost específico a WordPress o Nuxt';
 
-    /**
-     * Execute the console command.
-     */
-    public function handle(WordPressPublisher $publisher): int
+    public function handle(WordPressPublisher $wpPublisher, NuxtBlogPublisher $nuxtPublisher): int
     {
-        $postId = $this->argument('post');
-        $siteId = $this->option('site');
+        $postId   = $this->argument('post');
+        $siteId   = (int) $this->option('site');
+        $siteType = $this->option('site-type');
 
-        // Validar opciones requeridas
         if (!$siteId) {
             $this->error('La opción --site es requerida');
-            $this->info('Uso: php artisan seo:publish:post {post-id} --site={site-id}');
             return self::FAILURE;
         }
 
-        // Buscar post
         $post = GeneratedPost::find($postId);
         if (!$post) {
             $this->error("Post #{$postId} no encontrado");
             return self::FAILURE;
         }
 
-        // Buscar sitio
-        $site = WordPressSite::find($siteId);
-        if (!$site) {
-            $this->error("WordPressSite #{$siteId} no encontrado");
-            return self::FAILURE;
-        }
-
-        // Verificar que no esté ya publicado
         if ($post->status === 'published') {
-            $this->warn("Post #{$postId} ya está publicado");
-            $this->info("URL: {$post->published_url}");
-
+            $this->warn("Post #{$postId} ya está publicado: {$post->published_url}");
             if (!$this->confirm('¿Desea re-publicar (actualizar) este post?', false)) {
                 return self::SUCCESS;
             }
         }
 
-        $this->info("Publishing post #{$post->id} to site #{$site->id} ({$site->site_url})...");
-        $this->newLine();
+        return $siteType === 'nuxt'
+            ? $this->publishToNuxt($post, $siteId, $nuxtPublisher)
+            : $this->publishToWordPress($post, $siteId, $wpPublisher);
+    }
+
+    private function publishToNuxt(GeneratedPost $post, int $siteId, NuxtBlogPublisher $publisher): int
+    {
+        $site = NuxtSite::where('id', $siteId)->where('is_active', true)->first();
+
+        if (!$site) {
+            $this->error("NuxtSite #{$siteId} no encontrado o inactivo");
+            return self::FAILURE;
+        }
+
+        $this->info("Publishing post #{$post->id} to Nuxt site \"{$site->site_name}\" ({$site->site_url})...");
 
         try {
-            // Validar pre-publicación
-            $this->info('✓ Validating: Title, meta description, content, image');
+            $publisher->sync($post, $site->site_url, $site->api_key);
 
-            // Publicar
+            $post->status             = 'published';
+            $post->published_at       = now();
+            $post->target_nuxt_site_id = $siteId;
+            $post->published_url      = rtrim($site->site_url, '/') . '/blog/' . $post->slug;
+            $post->save();
+
+            $this->info("✓ Post published to Nuxt");
+            $this->info("URL: {$post->published_url}");
+
+            return self::SUCCESS;
+        } catch (\Exception $e) {
+            $this->error("✗ Nuxt publish failed: {$e->getMessage()}");
+            return self::FAILURE;
+        }
+    }
+
+    private function publishToWordPress(GeneratedPost $post, int $siteId, WordPressPublisher $publisher): int
+    {
+        $site = WordPressSite::find($siteId);
+
+        if (!$site) {
+            $this->error("WordPressSite #{$siteId} no encontrado");
+            return self::FAILURE;
+        }
+
+        $this->info("Publishing post #{$post->id} to WordPress site \"{$site->site_name}\" ({$site->site_url})...");
+
+        try {
             $result = $publisher->publish($post, $site);
 
-            // Mostrar resultados
             $this->newLine();
-            $this->info("✓ Uploaded featured image");
-            $this->info("✓ Uploaded " . ($result->imagesUploaded - 1) . " inline images");
-            $this->info("✓ Replaced image URLs in content");
             $this->info("✓ Published to WordPress → post_id: {$result->wordpressPostId}");
-
-            $this->newLine();
-            $this->line('<fg=green>Post published successfully!</>');
             $this->info("URL: {$result->publishedUrl}");
             $this->info("Time: {$result->duration}s");
 
-            // Mostrar tabla de métricas
-            $this->newLine();
-            $this->table(
-                ['Metric', 'Value'],
-                [
-                    ['Post ID', $post->id],
-                    ['WordPress Post ID', $result->wordpressPostId],
-                    ['Title', $post->title],
-                    ['Word Count', $post->word_count],
-                    ['Quality Score', $post->quality_score . '/100'],
-                    ['Images Uploaded', $result->imagesUploaded],
-                    ['Duration', $result->duration . 's'],
-                    ['Published URL', $result->publishedUrl],
-                ]
-            );
-
             return self::SUCCESS;
         } catch (ValidationException $e) {
-            $this->newLine();
-            $this->error('✗ Validation failed:');
-            $this->error($e->getMessage());
+            $this->error("✗ Validation failed: {$e->getMessage()}");
             return self::FAILURE;
         } catch (WordPressPublishException $e) {
-            $this->newLine();
-            $this->error('✗ Publication failed:');
-            $this->error($e->getMessage());
+            $this->error("✗ Publication failed: {$e->getMessage()}");
             return self::FAILURE;
         } catch (\Exception $e) {
-            $this->newLine();
-            $this->error('✗ Unexpected error:');
-            $this->error($e->getMessage());
-            $this->error($e->getTraceAsString());
+            $this->error("✗ Unexpected error: {$e->getMessage()}");
             return self::FAILURE;
         }
     }
