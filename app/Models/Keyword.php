@@ -72,17 +72,18 @@ class Keyword extends Model
     }
 
     /**
-     * Scope: keywords not yet generated for the given WordPress site.
+     * Scope: keywords not yet generated for the given site.
+     * Pass $column = 'target_wordpress_site_id' or 'target_nuxt_site_id'.
      * Ordered by priority score: search_volume_co / (keyword_difficulty + 1)
      */
-    public function scopeAvailableForSite(Builder $query, int $siteId): Builder
+    public function scopeAvailableForSite(Builder $query, int $siteId, string $column = 'target_wordpress_site_id'): Builder
     {
         return $query
-            ->whereNotIn('id', function ($sub) use ($siteId) {
+            ->whereNotIn('id', function ($sub) use ($siteId, $column) {
                 $sub->select('primary_keyword_id')
                     ->from('generated_posts')
                     ->whereNotNull('primary_keyword_id')
-                    ->where('target_wordpress_site_id', $siteId);
+                    ->where($column, $siteId);
             })
             ->orderByRaw('search_volume_co / (keyword_difficulty + 1) DESC');
     }

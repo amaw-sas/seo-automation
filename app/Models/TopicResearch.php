@@ -34,17 +34,18 @@ class TopicResearch extends Model
     }
 
     /**
-     * Scope: topics not yet generated for the given WordPress site.
+     * Scope: topics not yet generated for the given site.
+     * Pass $column = 'target_wordpress_site_id' or 'target_nuxt_site_id'.
      * Ordered by priority score: potential_traffic / (competition_level + 1)
      */
-    public function scopeAvailableForSite(Builder $query, int $siteId): Builder
+    public function scopeAvailableForSite(Builder $query, int $siteId, string $column = 'target_wordpress_site_id'): Builder
     {
         return $query
-            ->whereNotIn('id', function ($sub) use ($siteId) {
+            ->whereNotIn('id', function ($sub) use ($siteId, $column) {
                 $sub->select('topic_research_id')
                     ->from('generated_posts')
                     ->whereNotNull('topic_research_id')
-                    ->where('target_wordpress_site_id', $siteId);
+                    ->where($column, $siteId);
             })
             ->orderByRaw('potential_traffic / (competition_level + 1) DESC');
     }

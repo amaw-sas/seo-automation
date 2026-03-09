@@ -8,10 +8,11 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-// Daily end-to-end publish: selects best keyword, generates, validates, publishes → WP + Nuxt
-// alquilatucarro — site_id=1
-Schedule::command('seo:daily:publish --site=1 --sync-nuxt')
+// Daily end-to-end publish: selects best keyword/topic, generates, validates, publishes.
+// --site accepts WordPressSite ID or NuxtSite ID — the command auto-detects the type.
+// alquilatucarro (NuxtSite) — confirm ID via: php artisan db:table nuxt_sites
+Schedule::command('seo:daily:publish --site=1')
     ->dailyAt('08:00')
     ->timezone('America/Bogota')
     ->withoutOverlapping()
-    ->appendOutputTo(storage_path('logs/daily-publish.log'));
+    ->appendOutputTo(storage_path('logs/daily-publish-site1.log'));

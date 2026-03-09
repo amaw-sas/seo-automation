@@ -17,15 +17,18 @@ use Illuminate\Support\Facades\Log;
 class DailyPublish extends Command
 {
     protected $signature = 'seo:daily:publish
-                            {--site= : ID del WordPressSite destino (requerido)}
+                            {--site= : ID del sitio destino (WordPressSite o NuxtSite)}
                             {--source=keywords : Fuente de contenido: keywords|topics}
                             {--llm=anthropic : LLM provider (anthropic, openai, xai)}
                             {--image-llm=xai : Image LLM provider (xai, dalle3)}
                             {--min-quality=70 : Quality score mínimo para publicar}
-                            {--sync-nuxt : Sincroniza el post publicado al sitio Nuxt vinculado}
                             {--dry-run : Muestra qué se seleccionaría sin generar ni publicar}';
 
     protected $description = 'Selecciona el mejor keyword/topic disponible, genera el post y lo publica (flujo end-to-end diario)';
+
+    // Resolved at runtime
+    private WordPressSite|NuxtSite|null $site = null;
+    private bool $isNuxtOnly = false;
 
     public function handle(
         WordPressPublisher $wpPublisher,
@@ -38,21 +41,21 @@ class DailyPublish extends Command
             return self::FAILURE;
         }
 
-        $site = WordPressSite::find($siteId);
-
-        if (!$site || !$site->is_active) {
-            $this->error("WordPressSite #{$siteId} no encontrado o inactivo.");
+        if (!$this->resolveSite($siteId)) {
             return self::FAILURE;
         }
 
-        $this->info("Site: {$site->site_name} ({$site->site_url})");
+        $siteName = $this->site->site_name;
+        $siteType = $this->isNuxtOnly ? 'NuxtSite' : 'WordPressSite';
+        $this->info("Site: {$siteName} [{$siteType}]");
         $this->newLine();
 
-        // 1. Select best source (keyword or topic)
-        $source = $this->selectBestSource($siteId);
+        // 1. Select best keyword/topic for this site
+        $siteColumn = $this->isNuxtOnly ? 'target_nuxt_site_id' : 'target_wordpress_site_id';
+        $source = $this->selectBestSource($siteId, $siteColumn);
 
         if (!$source) {
-            $this->warn('No hay keywords/topics disponibles sin publicar para este sitio. Nada que hacer.');
+            $this->warn('No hay keywords/topics disponibles sin publicar para este sitio.');
             return self::SUCCESS;
         }
 
@@ -75,22 +78,27 @@ class DailyPublish extends Command
             return self::FAILURE;
         }
 
-        // 4. Set target site before publishing
-        $post->target_wordpress_site_id = $siteId;
-        $post->save();
+        // 4. Publish
+        if ($this->isNuxtOnly) {
+            $post->target_nuxt_site_id = $siteId;
+            $post->save();
 
-        // 5. Publish to WordPress
-        $result = $this->publishToWordPress($post, $site, $wpPublisher);
-        if (!$result) {
-            return self::FAILURE;
+            if (!$this->publishToNuxt($post, $this->site, $nuxtPublisher)) {
+                return self::FAILURE;
+            }
+        } else {
+            $post->target_wordpress_site_id = $siteId;
+            $post->save();
+
+            if (!$this->publishToWordPress($post, $this->site, $wpPublisher)) {
+                return self::FAILURE;
+            }
+
+            // Sync to linked Nuxt site (optional)
+            $this->syncToLinkedNuxt($post, $this->site, $nuxtPublisher);
         }
 
-        // 6. Sync to Nuxt (optional)
-        if ($this->option('sync-nuxt')) {
-            $this->syncToNuxt($post, $site, $nuxtPublisher);
-        }
-
-        // 7. Summary
+        // 5. Summary
         $this->newLine();
         $this->table(['Métrica', 'Valor'], [
             ['Post ID', $post->id],
@@ -102,33 +110,55 @@ class DailyPublish extends Command
             ['URL publicada', $post->published_url ?? '—'],
         ]);
 
-        Log::info("DailyPublish: post #{$post->id} published for site #{$siteId}", [
-            'title' => $post->title,
+        Log::info("DailyPublish: post #{$post->id} published for {$siteType} #{$siteId}", [
+            'title'         => $post->title,
             'quality_score' => $post->quality_score,
             'published_url' => $post->published_url,
-            'total_cost' => $post->total_cost,
+            'total_cost'    => $post->total_cost,
         ]);
 
         return self::SUCCESS;
     }
 
     /**
+     * Resolve site by ID: try WordPressSite first, then NuxtSite.
+     */
+    private function resolveSite(int $siteId): bool
+    {
+        $wpSite = WordPressSite::where('id', $siteId)->where('is_active', true)->first();
+
+        if ($wpSite) {
+            $this->site = $wpSite;
+            $this->isNuxtOnly = false;
+            return true;
+        }
+
+        $nuxtSite = NuxtSite::where('id', $siteId)->where('is_active', true)->first();
+
+        if ($nuxtSite) {
+            $this->site = $nuxtSite;
+            $this->isNuxtOnly = true;
+            return true;
+        }
+
+        $this->error("Sitio #{$siteId} no encontrado o inactivo (buscado en wordpress_sites y nuxt_sites).");
+        return false;
+    }
+
+    /**
      * Select best available keyword or topic for the given site.
      */
-    private function selectBestSource(int $siteId): Keyword|TopicResearch|null
+    private function selectBestSource(int $siteId, string $siteColumn): Keyword|TopicResearch|null
     {
-        $sourceType = $this->option('source');
-
-        if ($sourceType === 'topics') {
-            $source = TopicResearch::availableForSite($siteId)->first();
+        if ($this->option('source') === 'topics') {
+            $source = TopicResearch::availableForSite($siteId, $siteColumn)->first();
             if ($source) {
                 return $source;
             }
             $this->warn('No hay topics disponibles, intentando con keywords...');
         }
 
-        // Default: keywords (also fallback from topics)
-        return Keyword::availableForSite($siteId)->first();
+        return Keyword::availableForSite($siteId, $siteColumn)->first();
     }
 
     /**
@@ -141,7 +171,7 @@ class DailyPublish extends Command
                 ? round($source->potential_traffic / ($source->competition_level + 1), 2)
                 : $source->potential_traffic;
 
-            $this->line("Fuente: <fg=cyan>topic_research</>");
+            $this->line('Fuente: <fg=cyan>topic_research</>');
             $this->line("  Título: {$source->title}");
             $this->line("  Tráfico potencial: {$source->potential_traffic}");
             $this->line("  Nivel de competencia: {$source->competition_level}");
@@ -150,7 +180,7 @@ class DailyPublish extends Command
             $difficulty = (float) ($source->keyword_difficulty ?? 0);
             $score = round($source->search_volume_co / ($difficulty + 1), 2);
 
-            $this->line("Fuente: <fg=cyan>keyword</>");
+            $this->line('Fuente: <fg=cyan>keyword</>');
             $this->line("  Keyword: {$source->keyword}");
             $this->line("  Volumen CO: {$source->search_volume_co}");
             $this->line("  Dificultad: {$difficulty}");
@@ -174,7 +204,7 @@ class DailyPublish extends Command
 
             $post = $generator->generatePost($source);
 
-            $this->info("  ✓ Post generado: \"{$post->title}\" ({$post->word_count} palabras, score {$post->quality_score}/100)");
+            $this->info("  ✓ \"{$post->title}\" ({$post->word_count} palabras, score {$post->quality_score}/100)");
 
             return $post;
         } catch (\Exception $e) {
@@ -205,13 +235,35 @@ class DailyPublish extends Command
     }
 
     /**
-     * Publish post to WordPress.
+     * Publish directly to a Nuxt-only site.
      */
-    private function publishToWordPress(
-        GeneratedPost $post,
-        WordPressSite $site,
-        WordPressPublisher $publisher
-    ): bool {
+    private function publishToNuxt(GeneratedPost $post, NuxtSite $nuxtSite, NuxtBlogPublisher $publisher): bool
+    {
+        $this->newLine();
+        $this->info("Publicando en Nuxt ({$nuxtSite->site_name})...");
+
+        try {
+            $publisher->sync($post, $nuxtSite->site_url, $nuxtSite->api_key);
+
+            $post->status = 'published';
+            $post->published_at = now();
+            $post->published_url = rtrim($nuxtSite->site_url, '/') . '/blog/' . $post->slug;
+            $post->save();
+
+            $this->info("  ✓ Publicado: {$post->published_url}");
+            return true;
+        } catch (\Exception $e) {
+            $this->error("Error al publicar en Nuxt: {$e->getMessage()}");
+            Log::error("DailyPublish: Nuxt publish failed for post #{$post->id} — {$e->getMessage()}");
+            return false;
+        }
+    }
+
+    /**
+     * Publish to WordPress.
+     */
+    private function publishToWordPress(GeneratedPost $post, WordPressSite $site, WordPressPublisher $publisher): bool
+    {
         $this->newLine();
         $this->info('Publicando en WordPress...');
 
@@ -227,15 +279,11 @@ class DailyPublish extends Command
     }
 
     /**
-     * Sync post to linked Nuxt site.
+     * Sync post to the Nuxt site linked via domain_id (WordPress sites only).
      */
-    private function syncToNuxt(
-        GeneratedPost $post,
-        WordPressSite $site,
-        NuxtBlogPublisher $nuxtPublisher
-    ): void {
+    private function syncToLinkedNuxt(GeneratedPost $post, WordPressSite $site, NuxtBlogPublisher $nuxtPublisher): void
+    {
         if (!$site->domain_id) {
-            $this->warn('  Nuxt sync omitido: el sitio no tiene domain_id configurado.');
             return;
         }
 
@@ -244,7 +292,6 @@ class DailyPublish extends Command
             ->first();
 
         if (!$nuxtSite) {
-            $this->warn('  Nuxt sync omitido: no se encontró NuxtSite activo para este dominio.');
             return;
         }
 
@@ -253,6 +300,8 @@ class DailyPublish extends Command
 
         try {
             $nuxtPublisher->sync($post, $nuxtSite->site_url, $nuxtSite->api_key);
+            $post->target_nuxt_site_id = $nuxtSite->id;
+            $post->save();
             $this->info('  ✓ Sincronizado a Nuxt');
         } catch (\RuntimeException $e) {
             $this->warn("  ⚠ Nuxt sync falló: {$e->getMessage()}");

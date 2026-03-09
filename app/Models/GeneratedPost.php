@@ -32,6 +32,7 @@ class GeneratedPost extends Model
         'status',
         'quality_score',
         'target_wordpress_site_id',
+        'target_nuxt_site_id',
         'wordpress_post_id',
         'published_url',
         'published_at',
@@ -76,6 +77,14 @@ class GeneratedPost extends Model
     public function wordPressSite(): BelongsTo
     {
         return $this->belongsTo(WordPressSite::class, 'target_wordpress_site_id');
+    }
+
+    /**
+     * Get the Nuxt site
+     */
+    public function nuxtSite(): BelongsTo
+    {
+        return $this->belongsTo(NuxtSite::class, 'target_nuxt_site_id');
     }
 
     /**
