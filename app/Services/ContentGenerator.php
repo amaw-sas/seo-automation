@@ -331,19 +331,21 @@ PROMPT;
         }
 
         $cityName = $keyword->city?->name ?? 'Colombia';
+        $countryName = $keyword->city?->country?->name ?? 'España';
 
         try {
             // Generate featured image
-            $featuredPrompt = "Realistic photograph of a modern rental car in a setting that matches the location: \"{$keyword->keyword}\". "
-                . "The scene should feel authentic to that specific city or region: correct local architecture, vegetation, and atmosphere. "
-                . "The car is clean and well-maintained, parked or driving on a real local street or highway. "
-                . "Natural daylight, photorealistic photography style, warm colors. "
-                . "No futuristic elements, no dystopian imagery, no skyscrapers that do not belong to that city. "
-                . "IMPORTANT: absolutely no text, no words, no letters, no watermarks, no overlays of any kind in the image.";
+            $featuredPrompt = "No text, no words, no letters, no signs, no watermarks, no license plates with readable text. "
+                . "Shot on Canon EOS R5 with 35mm f/1.8 lens, golden hour natural light, shallow depth of field. "
+                . "Professional automotive stock photography: a clean modern rental car (sedan or SUV) parked on a real street in {$cityName}, {$countryName}. "
+                . "The background shows authentic local architecture recognizable to that specific city — not generic European street. "
+                . "Car occupies left third of frame, city's characteristic urban texture visible in background. "
+                . "Warm afternoon light, photorealistic. No CGI look, no dystopian elements, no futuristic elements. "
+                . "Editorial travel photography style for a premium car rental brand.";
 
             $featuredImage = $this->imageLLM->generate($featuredPrompt, [
-                'size' => '1024x1024',
-                'quality' => 'medium',
+                'size' => '1792x1024',   // landscape 16:9 — mejor para hero de blog
+                'quality' => 'hd',       // HD: $0.080 vs $0.040 standard — duplica detalle
             ]);
 
             $images['featured'] = $featuredImage['url'];
@@ -354,12 +356,11 @@ PROMPT;
             $sectionsForImages = array_slice($outline['sections'], 0, 2);
 
             foreach ($sectionsForImages as $section) {
-                $inlinePrompt = "Realistic photograph illustrating \"{$section['heading']}\" "
-                    . "in the context of car rental in {$cityName}. "
-                    . "Show an authentic scene: a customer receiving car keys, a car on a local road or highway, "
-                    . "a rental counter interaction, or a car parked near a recognizable local landmark. "
-                    . "Natural daylight, photorealistic photography. No futuristic elements. "
-                    . "IMPORTANT: absolutely no text, no words, no letters, no watermarks in the image.";
+                $inlinePrompt = "No text, no words, no letters, no watermarks. "
+                    . "Shot on Sony A7IV with 50mm f/2.0 lens, natural soft light. "
+                    . "Documentary travel photography illustrating: \"{$section['heading']}\". "
+                    . "Authentic scene in {$cityName}, {$countryName} — real environment, not staged studio. "
+                    . "Photorealistic, editorial style, warm tones. No dystopian elements, no CGI look.";
 
                 $inlineImage = $this->imageLLM->generate($inlinePrompt, [
                     'size' => '1024x1024',
