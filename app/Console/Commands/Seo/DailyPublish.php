@@ -17,7 +17,8 @@ use Illuminate\Support\Facades\Log;
 class DailyPublish extends Command
 {
     protected $signature = 'seo:daily:publish
-                            {--site= : ID del sitio destino (WordPressSite o NuxtSite)}
+                            {--site= : ID del sitio destino}
+                            {--site-type=wordpress : Tipo de sitio: wordpress|nuxt}
                             {--source=keywords : Fuente de contenido: keywords|topics}
                             {--llm=anthropic : LLM provider (anthropic, openai, xai)}
                             {--image-llm=xai : Image LLM provider (xai, dalle3)}
@@ -41,7 +42,7 @@ class DailyPublish extends Command
             return self::FAILURE;
         }
 
-        if (!$this->resolveSite($siteId)) {
+        if (!$this->resolveSite($siteId, $this->option('site-type'))) {
             return self::FAILURE;
         }
 
@@ -121,28 +122,34 @@ class DailyPublish extends Command
     }
 
     /**
-     * Resolve site by ID: try WordPressSite first, then NuxtSite.
+     * Resolve site by ID using the explicit --site-type flag.
      */
-    private function resolveSite(int $siteId): bool
+    private function resolveSite(int $siteId, string $siteType): bool
     {
-        $wpSite = WordPressSite::where('id', $siteId)->where('is_active', true)->first();
+        if ($siteType === 'nuxt') {
+            $nuxtSite = NuxtSite::where('id', $siteId)->where('is_active', true)->first();
 
-        if ($wpSite) {
-            $this->site = $wpSite;
-            $this->isNuxtOnly = false;
-            return true;
-        }
+            if (!$nuxtSite) {
+                $this->error("NuxtSite #{$siteId} no encontrado o inactivo.");
+                return false;
+            }
 
-        $nuxtSite = NuxtSite::where('id', $siteId)->where('is_active', true)->first();
-
-        if ($nuxtSite) {
             $this->site = $nuxtSite;
             $this->isNuxtOnly = true;
             return true;
         }
 
-        $this->error("Sitio #{$siteId} no encontrado o inactivo (buscado en wordpress_sites y nuxt_sites).");
-        return false;
+        // Default: wordpress
+        $wpSite = WordPressSite::where('id', $siteId)->where('is_active', true)->first();
+
+        if (!$wpSite) {
+            $this->error("WordPressSite #{$siteId} no encontrado o inactivo.");
+            return false;
+        }
+
+        $this->site = $wpSite;
+        $this->isNuxtOnly = false;
+        return true;
     }
 
     /**
