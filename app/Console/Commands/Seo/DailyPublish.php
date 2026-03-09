@@ -20,7 +20,7 @@ class DailyPublish extends Command
                             {--site= : ID del sitio destino}
                             {--site-type=wordpress : Tipo de sitio: wordpress|nuxt}
                             {--source=keywords : Fuente de contenido: keywords|topics}
-                            {--llm=anthropic : LLM provider (anthropic, openai, xai)}
+                            {--llm=openai : LLM provider (anthropic, openai, xai)}
                             {--image-llm=xai : Image LLM provider (xai, dalle3)}
                             {--min-quality=70 : Quality score mínimo para publicar}
                             {--dry-run : Muestra qué se seleccionaría sin generar ni publicar}';

@@ -18,7 +18,7 @@ class GeneratePost extends Command
     protected $signature = 'seo:generate:post
                             {--keyword= : Keyword ID or text to generate post for}
                             {--topic= : Topic research ID to generate post for}
-                            {--llm=anthropic : LLM provider to use (anthropic, openai, google, xai)}
+                            {--llm=openai : LLM provider to use (anthropic, openai, google, xai)}
                             {--image-llm= : Image LLM provider to use (xai, dalle3, stable-diffusion)}
                             {--dry-run : Generate outline only, do not create post}';
 
