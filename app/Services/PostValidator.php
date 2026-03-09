@@ -4,52 +4,48 @@ namespace App\Services;
 
 use App\Exceptions\ValidationException;
 use App\Models\GeneratedPost;
+use Illuminate\Support\Facades\Log;
 
 class PostValidator
 {
     /**
-     * Valida un post antes de publicación según criterios SEO básicos.
+     * Validate a post before publishing.
      *
-     * @param GeneratedPost $post
-     * @return void
+     * Hard errors (throws): missing image, image file not found.
+     * Soft warnings (log only): title length, meta description length, word count.
+     *
      * @throws ValidationException
      */
     public static function validate(GeneratedPost $post): void
     {
-        // Validar título: 25-70 caracteres
+        // Título: 25-70 caracteres (warning)
         $titleLength = mb_strlen($post->title);
         if ($titleLength < 25 || $titleLength > 70) {
-            throw new ValidationException(
-                "El título debe tener entre 25 y 70 caracteres (actual: {$titleLength})"
-            );
+            Log::warning("PostValidator: title length out of range ({$titleLength} chars) for post #{$post->id} — \"{$post->title}\"");
         }
 
-        // Validar meta description: 100-160 caracteres
+        // Meta description: 100-160 caracteres (warning)
         if (empty($post->meta_description)) {
-            throw new ValidationException("Meta description es requerida");
+            Log::warning("PostValidator: missing meta description for post #{$post->id}");
+        } else {
+            $metaLength = mb_strlen($post->meta_description);
+            if ($metaLength < 100 || $metaLength > 160) {
+                Log::warning("PostValidator: meta description length out of range ({$metaLength} chars) for post #{$post->id}");
+            }
         }
 
-        $metaLength = mb_strlen($post->meta_description);
-        if ($metaLength < 100 || $metaLength > 160) {
-            throw new ValidationException(
-                "Meta description debe tener entre 100 y 160 caracteres (actual: {$metaLength})"
-            );
-        }
-
-        // Validar contenido mínimo: 300 palabras
+        // Contenido mínimo: 300 palabras (warning)
         $wordCount = $post->word_count ?? str_word_count(strip_tags($post->content));
         if ($wordCount < 300) {
-            throw new ValidationException(
-                "El contenido debe tener mínimo 300 palabras (actual: {$wordCount})"
-            );
+            Log::warning("PostValidator: low word count ({$wordCount} words) for post #{$post->id}");
         }
 
-        // Validar imagen destacada
+        // Imagen destacada ausente (error duro)
         if (empty($post->featured_image_url)) {
             throw new ValidationException("Se requiere una imagen destacada para publicar");
         }
 
-        // Validar que la imagen destacada exista localmente
+        // Imagen destacada no existe en disco (error duro)
         $imagePath = str_replace(url('/'), '', $post->featured_image_url);
         $fullPath = public_path($imagePath);
 
@@ -61,11 +57,8 @@ class PostValidator
     }
 
     /**
-     * Valida que el post cumpla con un quality score mínimo.
+     * Validate minimum quality score (hard error).
      *
-     * @param GeneratedPost $post
-     * @param int $minQuality
-     * @return void
      * @throws ValidationException
      */
     public static function validateQualityScore(GeneratedPost $post, int $minQuality = 70): void
