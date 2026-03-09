@@ -16,11 +16,11 @@ class PostValidator
      */
     public static function validate(GeneratedPost $post): void
     {
-        // Validar título: 30-60 caracteres
+        // Validar título: 25-70 caracteres
         $titleLength = mb_strlen($post->title);
-        if ($titleLength < 30 || $titleLength > 60) {
+        if ($titleLength < 25 || $titleLength > 70) {
             throw new ValidationException(
-                "El título debe tener entre 30 y 60 caracteres (actual: {$titleLength})"
+                "El título debe tener entre 25 y 70 caracteres (actual: {$titleLength})"
             );
         }
 
