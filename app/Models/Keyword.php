@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -68,6 +69,22 @@ class Keyword extends Model
     public function gaps(): HasMany
     {
         return $this->hasMany(KeywordGap::class);
+    }
+
+    /**
+     * Scope: keywords not yet generated for the given WordPress site.
+     * Ordered by priority score: search_volume_co / (keyword_difficulty + 1)
+     */
+    public function scopeAvailableForSite(Builder $query, int $siteId): Builder
+    {
+        return $query
+            ->whereNotIn('id', function ($sub) use ($siteId) {
+                $sub->select('primary_keyword_id')
+                    ->from('generated_posts')
+                    ->whereNotNull('primary_keyword_id')
+                    ->where('target_wordpress_site_id', $siteId);
+            })
+            ->orderByRaw('search_volume_co / (keyword_difficulty + 1) DESC');
     }
 
     /**
